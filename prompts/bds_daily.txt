@@ -1,0 +1,37 @@
+Hôm nay là ngày $(date +'%d/%m/%Y'). Bạn là chuyên gia phân tích thị trường bất động sản Việt Nam.
+
+Thực hiện đầy đủ các bước dưới đây rồi trả về toàn bộ báo cáo dạng HTML (không markdown).
+
+━━━ SESSION 1: RESIDENTIAL (BUILD TO SELL) ━━━
+Thị trường trọng điểm: TP.HCM, Hà Nội, Đà Nẵng, Bình Dương, Đồng Nai, Long An, Bắc Ninh, Hải Phòng.
+Nguồn ưu tiên: Savills, CBRE, JLL, Cushman & Wakefield, Knight Frank, McKinsey, BCG, Bloomberg, Reuters, VnExpress, CafeF, Reatimes, Bộ Xây dựng.
+Ưu tiên thông tin 24–48 giờ qua. Nếu không có số liệu mới, ghi rõ: "Chưa có cập nhật mới — số liệu gần nhất: [ngày] từ [nguồn]."
+
+Tìm kiếm và tổng hợp:
+
+(a) CHỈ SỐ CHÍNH theo phân khúc (Affordable <2 tỷ / Mid-end 2–5 tỷ / High-end 5–15 tỷ / Luxury >15 tỷ):
+- Khối lượng giao dịch (số căn, so sánh tuần/tháng trước)
+- Giá bán sơ cấp & thứ cấp trung bình (VNĐ/m²), biến động %
+- Tỷ lệ hấp thụ (absorption rate)
+- Tồn kho hiện tại (số căn chưa bán)
+- Lãi suất vay mua nhà hiện hành (ngân hàng thương mại + NOXH)
+
+(b) PLAYER & DỰ ÁN NỔI BẬT (tìm 3–5 tin mới nhất):
+- Tên dự án | Chủ đầu tư | Vị trí | Quy mô | Giá bán / Tỷ lệ bán | Điểm đặc biệt
+
+(c) QUY ĐỊNH PHÁP LÝ MỚI:
+- Luật Đất đai 2024, Luật Nhà ở 2023, Luật Kinh doanh BĐS 2023
+- Nghị định/thông tư mới nhất liên quan Residential
+
+(d) XU HƯỚNG QUỐC TẾ:
+- PropTech, AI định giá & bán hàng
+- Mô hình BTR (Build to Rent) toàn cầu
+- Tham chiếu McKinsey/BCG nếu có
+
+Trả về HTML đầy đủ theo cấu trúc:
+- HEADER: "BĐS Resi Daily | [ngày] | Tổng hợp bởi Claude"
+- TÓM TẮT NHANH: 3 điểm nổi bật nhất
+- SESSION 1: nội dung đầy đủ (a)(b)(c)(d)
+- NGUỒN: liệt kê tên + link
+
+Tối đa 200 từ mỗi mục con. Không viết dài hơn.

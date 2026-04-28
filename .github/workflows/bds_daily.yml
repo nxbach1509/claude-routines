@@ -1,0 +1,49 @@
+name: BĐS Daily Report
+
+on:
+  schedule:
+    - cron: '30 0 * * *'   # 7:30 AM ICT (UTC+7 = 00:30 UTC)
+  workflow_dispatch:         # cho phép chạy thủ công từ GitHub UI
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node (Claude CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Set up Python (email sender)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate report & send email
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: nxbach1509@gmail.com
+        run: |
+          # Nội suy ngày vào prompt
+          PROMPT=$(sed "s/\$(date +'%d\/%m\/%Y')/$(date +'%d\/%m\/%Y')/g" prompts/bds_daily.txt)
+
+          # Gọi Claude CLI, lấy output HTML
+          claude \
+            --print \
+            --allowedTools "WebSearch" \
+            --output-format text \
+            -p "$PROMPT" \
+            > /tmp/report.html
+
+          # Gửi email
+          python scripts/send_email.py < /tmp/report.html
