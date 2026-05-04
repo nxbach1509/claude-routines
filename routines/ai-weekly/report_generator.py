@@ -96,15 +96,21 @@ def search_tavily(query: str, api_key: str) -> str:
 
 
 def search_duckduckgo(query: str) -> str:
-    try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=6))
-        parts = [f"• {r['title']} ({r['href']}): {r['body'][:250]}" for r in results]
-        return "\n".join(parts) or "No results."
-    except Exception as exc:
-        logger.warning(f"DuckDuckGo error for '{query}': {exc}")
-        return f"Search failed: {exc}"
+    # Try new package name first (ddgs), fall back to old (duckduckgo_search)
+    for module_name in ("ddgs", "duckduckgo_search"):
+        try:
+            mod = __import__(module_name, fromlist=["DDGS"])
+            DDGS = mod.DDGS
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=6))
+            parts = [f"• {r['title']} ({r['href']}): {r['body'][:250]}" for r in results]
+            return "\n".join(parts) or "No results."
+        except ImportError:
+            continue
+        except Exception as exc:
+            logger.warning(f"DuckDuckGo error for '{query}': {exc}")
+            return f"Search failed: {exc}"
+    return "Search unavailable: install ddgs with 'pip install ddgs'"
 
 
 def web_search(query: str, tavily_key: Optional[str]) -> str:
@@ -261,6 +267,15 @@ def send_email(
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="AI Weekly Report Generator")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Generate report and print to stdout. Skip email sending.",
+    )
+    args = parser.parse_args()
+
     # Load .env from project root
     project_root = Path(__file__).resolve().parent.parent.parent
     env_file = project_root / ".env"
@@ -279,18 +294,24 @@ def main() -> None:
     # Optional
     tavily_key = os.environ.get("TAVILY_API_KEY", "").strip() or None
 
-    missing = [
-        name for name, val in [
-            ("ANTHROPIC_API_KEY", anthropic_key),
-            ("GMAIL_USER", gmail_user),
-            ("GMAIL_APP_PASSWORD", gmail_password),
+    # In dry-run mode, only the API key is required
+    if args.dry_run:
+        if not anthropic_key:
+            logger.error("Missing ANTHROPIC_API_KEY in .env")
+            sys.exit(1)
+    else:
+        missing = [
+            name for name, val in [
+                ("ANTHROPIC_API_KEY", anthropic_key),
+                ("GMAIL_USER", gmail_user),
+                ("GMAIL_APP_PASSWORD", gmail_password),
+            ]
+            if not val
         ]
-        if not val
-    ]
-    if missing:
-        logger.error(f"Missing required env vars: {', '.join(missing)}")
-        logger.error(f"Copy .env.example to .env and fill in the values.")
-        sys.exit(1)
+        if missing:
+            logger.error(f"Missing required env vars: {', '.join(missing)}")
+            logger.error("Copy .env.example to .env and fill in the values.")
+            sys.exit(1)
 
     week_info = get_week_info()
     logger.info(
@@ -312,6 +333,14 @@ def main() -> None:
 
     # Build email subject
     subject = f"AI Weekly — Tuần {week_info['week_num']}, {week_info['friday_date']}"
+
+    if args.dry_run:
+        print("\n" + "=" * 70)
+        print(f"DRY RUN — Subject: {subject}")
+        print("=" * 70)
+        print(report)
+        logger.info("Dry run complete. Email NOT sent.")
+        return
 
     # Send email (retry up to 3 times)
     for attempt in range(1, 4):
