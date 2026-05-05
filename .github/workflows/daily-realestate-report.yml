@@ -1,0 +1,30 @@
+name: Daily Real Estate Report — Vietnam
+
+on:
+  schedule:
+    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4) in cron notation
+    - cron: '30 0 * * 1-4'
+  workflow_dispatch:   # manual trigger for testing / backfill
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate & send report
+        env:
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python scripts/daily_report.py
