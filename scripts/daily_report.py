@@ -45,8 +45,9 @@ def generate_report(session: dict, date_str: str) -> str:
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
+    # Tool-use loop: web_search_20250305 is server-side — Anthropic executes the
+    # search internally. We acknowledge each tool_use stop with empty tool_results
+    # so the model can continue with the injected search data.
     for _turn in range(20):
         resp = client.messages.create(
             model=MODEL,
@@ -61,6 +62,8 @@ def generate_report(session: dict, date_str: str) -> str:
                 full_text += block.text
             elif getattr(block, "type", None) == "tool_use":
                 tool_uses.append(block)
+                query = getattr(block, "input", {}).get("query", "")
+                log.info("  → web_search: %s", query)
 
         if resp.stop_reason == "end_turn":
             break
@@ -81,6 +84,27 @@ def generate_report(session: dict, date_str: str) -> str:
     return full_text
 
 
+def _to_html(plain: str) -> str:
+    """Wrap plain-text report in minimal HTML for better email rendering."""
+    escaped = (
+        plain
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+    return (
+        "<!DOCTYPE html><html><head>"
+        '<meta charset="utf-8">'
+        "<style>"
+        "body{font-family:'Courier New',Courier,monospace;font-size:13px;"
+        "line-height:1.7;color:#1a1a1a;background:#ffffff;padding:24px 32px;}"
+        "pre{white-space:pre-wrap;word-wrap:break-word;margin:0;}"
+        "</style></head><body>"
+        f"<pre>{escaped}</pre>"
+        "</body></html>"
+    )
+
+
 def send_email(subject: str, body: str) -> None:
     sender = os.environ["GMAIL_SENDER"]
     password = os.environ["GMAIL_APP_PASSWORD"]
@@ -89,7 +113,9 @@ def send_email(subject: str, body: str) -> None:
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = RECIPIENT
+    # plain first (fallback), html second (preferred by mail clients)
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(_to_html(body), "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(sender, password)
