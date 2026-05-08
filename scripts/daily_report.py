@@ -45,14 +45,16 @@ def generate_report(session: dict, date_str: str) -> str:
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
+    # web_search_20250305 is a server-side built-in tool: Anthropic executes
+    # searches internally. The client loop below handles any intermediate
+    # tool_use stops by acknowledging with empty content, then awaits end_turn.
     for _turn in range(20):
         resp = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=messages,
+            extra_headers={"anthropic-beta": "web-search-2025-03-05"},
         )
 
         tool_uses: list = []
@@ -70,7 +72,7 @@ def generate_report(session: dict, date_str: str) -> str:
             messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "tool_result", "tool_use_id": tu.id, "content": []}
+                    {"type": "tool_result", "tool_use_id": tu.id, "content": ""}
                     for tu in tool_uses
                 ],
             })
@@ -79,6 +81,23 @@ def generate_report(session: dict, date_str: str) -> str:
 
     log.info("Report generated: %d chars", len(full_text))
     return full_text
+
+
+def _text_to_html(text: str) -> str:
+    """Wrap plain-text report in minimal HTML for email clients."""
+    import html as html_mod
+    escaped = html_mod.escape(text)
+    # Preserve line breaks and spacing
+    body = escaped.replace("\n", "<br>\n")
+    return (
+        "<!DOCTYPE html><html><head>"
+        "<meta charset='utf-8'>"
+        "<style>"
+        "body{font-family:monospace;font-size:14px;line-height:1.6;"
+        "color:#1a1a1a;background:#fff;max-width:900px;margin:0 auto;padding:24px}"
+        "</style></head>"
+        f"<body>{body}</body></html>"
+    )
 
 
 def send_email(subject: str, body: str) -> None:
@@ -90,6 +109,7 @@ def send_email(subject: str, body: str) -> None:
     msg["From"] = sender
     msg["To"] = RECIPIENT
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(_text_to_html(body), "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(sender, password)
