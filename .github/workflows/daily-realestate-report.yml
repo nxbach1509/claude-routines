@@ -2,9 +2,20 @@ name: Daily Real Estate Report — Vietnam
 
 on:
   schedule:
-    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4) in cron notation
+    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon–Thu only
     - cron: '30 0 * * 1-4'
-  workflow_dispatch:   # manual trigger for testing / backfill
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — generate report but do NOT send email'
+        type: boolean
+        default: false
+      session:
+        description: 'Force session (A=Residential, B=Hospitality, C=Retail&Office, D=Industrial). Leave empty for auto.'
+        type: choice
+        options: ['', 'A', 'B', 'C', 'D']
+        default: ''
 
 jobs:
   report:
@@ -27,4 +38,8 @@ jobs:
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: python scripts/daily_report.py
+        run: |
+          ARGS=""
+          [[ "${{ inputs.dry_run }}" == "true" ]] && ARGS="$ARGS --dry-run"
+          [[ -n "${{ inputs.session }}" ]] && ARGS="$ARGS --session ${{ inputs.session }}"
+          python scripts/daily_report.py $ARGS
