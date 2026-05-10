@@ -35,19 +35,22 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year: int, quarter: str) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    client = anthropic.Anthropic(
+        api_key=os.environ["ANTHROPIC_API_KEY"],
+        max_retries=3,
+    )
+    prompt = build_prompt(session, date_str, year, quarter)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
-    for _turn in range(20):
+    # Agentic loop: web_search_20250305 is server-side — Anthropic executes the
+    # search and the client acknowledges tool_use stops with empty tool_results.
+    for turn in range(20):
         resp = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
@@ -59,10 +62,11 @@ def generate_report(session: dict, date_str: str) -> str:
         for block in resp.content:
             if hasattr(block, "text"):
                 full_text += block.text
-            elif getattr(block, "type", None) == "tool_use":
+            elif getattr(block, "type", None) in ("tool_use", "server_tool_use"):
                 tool_uses.append(block)
 
         if resp.stop_reason == "end_turn":
+            log.info("Report complete after %d turn(s): %d chars", turn + 1, len(full_text))
             break
 
         if resp.stop_reason == "tool_use" and tool_uses:
@@ -70,14 +74,21 @@ def generate_report(session: dict, date_str: str) -> str:
             messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "tool_result", "tool_use_id": tu.id, "content": []}
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tu.id,
+                        "content": [],
+                    }
                     for tu in tool_uses
                 ],
             })
         else:
+            log.warning("Unexpected stop_reason=%s — ending loop", resp.stop_reason)
             break
 
-    log.info("Report generated: %d chars", len(full_text))
+    if not full_text.strip():
+        raise RuntimeError("Claude returned an empty report — check API response.")
+
     return full_text
 
 
@@ -106,11 +117,13 @@ def main() -> None:
 
     now = datetime.now(ICT)
     date_str = now.strftime("%d/%m/%Y")
+    year = now.year
+    quarter = f"Q{(now.month - 1) // 3 + 1}"
     thu_str = session["thu"]
 
-    log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
+    log.info("Session %s: %s — %s (%s/%s)", session["id"], session["name"], date_str, quarter, year)
 
-    body = generate_report(session, date_str)
+    body = generate_report(session, date_str, year, quarter)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")

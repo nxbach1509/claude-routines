@@ -38,6 +38,7 @@ SESSIONS: dict[int, dict] = {
 # ---------------------------------------------------------------------------
 _COMMON_PREAMBLE = """\
 Hôm nay là {thu_str}, {date_str} (giờ Việt Nam).
+Năm hiện tại: {year} | Quý hiện tại: {quarter}/{year}
 
 Bạn là chuyên gia chiến lược bất động sản cấp senior, kết hợp góc nhìn của nhà đầu tư, \
 developer và tư vấn chiến lược. Tiêu chuẩn phân tích: McKinsey/BCG — số liệu cụ thể, \
@@ -53,7 +54,14 @@ TIÊU CHUẨN ĐẦU RA:
 NGUỒN ƯU TIÊN (tìm kiếm từ 7 ngày qua trước):
 Savills, CBRE, JLL, Cushman & Wakefield, Knight Frank, McKinsey GI, BCG, Bain, \
 Mordor Intelligence, Bloomberg, Reuters, VnExpress, Cafef, Reatimes, Tạp chí BĐS VN, \
-Bộ Xây dựng.\
+Bộ Xây dựng.
+
+QUAN TRỌNG — TÌM KIẾM THEO NĂM HIỆN TẠI:
+Trong tất cả các truy vấn tìm kiếm dưới đây, hãy thay thế động:
+• "2025" → "{year}"
+• "Q1 2025" → "{quarter} {year}" (hoặc quý phù hợp nhất với ngày hiện tại)
+• "tháng 5 2025" → tháng/năm tương ứng với {date_str}
+Ưu tiên dữ liệu từ 7 ngày qua; nếu không có, lấy dữ liệu gần nhất và ghi rõ nguồn + ngày.\
 """
 
 _COMMON_FOOTER = """\
@@ -707,10 +715,12 @@ _PROMPT_MAP: dict[str, str] = {
 }
 
 
-def build_prompt(session: dict, date_str: str) -> str:
+def build_prompt(session: dict, date_str: str, year: int, quarter: str) -> str:
     """Return the fully-rendered prompt for *session* on *date_str*."""
     template = _PROMPT_MAP[session["id"]]
     return template.format(
         thu_str=session["thu"],
         date_str=date_str,
+        year=year,
+        quarter=quarter,
     )
