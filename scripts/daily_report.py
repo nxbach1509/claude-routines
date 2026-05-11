@@ -35,10 +35,10 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year: str) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    prompt = build_prompt(session, date_str, year)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
@@ -81,7 +81,7 @@ def generate_report(session: dict, date_str: str) -> str:
     return full_text
 
 
-def send_email(subject: str, body: str) -> None:
+def send_email(subject: str, plain_body: str, html_body: str | None = None) -> None:
     sender = os.environ["GMAIL_SENDER"]
     password = os.environ["GMAIL_APP_PASSWORD"]
 
@@ -89,7 +89,9 @@ def send_email(subject: str, body: str) -> None:
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = RECIPIENT
-    msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
+    if html_body:
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(sender, password)
@@ -110,7 +112,8 @@ def main() -> None:
 
     log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
 
-    body = generate_report(session, date_str)
+    year = now.strftime("%Y")
+    body = generate_report(session, date_str, year)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")
