@@ -1,0 +1,30 @@
+name: AI Weekly Report — Every Friday
+
+on:
+  schedule:
+    # 07:30 ICT (UTC+7) = 00:30 UTC | Friday only
+    - cron: '30 0 * * 5'
+  workflow_dispatch:   # manual trigger for testing / backfill
+
+jobs:
+  ai-weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate & send AI Weekly report
+        env:
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python scripts/ai_weekly_report.py
