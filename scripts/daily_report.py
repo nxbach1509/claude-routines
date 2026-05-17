@@ -35,18 +35,18 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year_str: str) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    prompt = build_prompt(session, date_str, year_str)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
+    # Tool-use loop for web_search_20250305 (Anthropic server-side search).
+    # On each turn: collect any text, then continue until end_turn.
     for _turn in range(20):
         resp = client.messages.create(
             model=MODEL,
@@ -55,23 +55,30 @@ def generate_report(session: dict, date_str: str) -> str:
             messages=messages,
         )
 
-        tool_uses: list = []
+        # Collect text blocks from this turn
+        tool_use_ids: list[str] = []
         for block in resp.content:
             if hasattr(block, "text"):
                 full_text += block.text
             elif getattr(block, "type", None) == "tool_use":
-                tool_uses.append(block)
+                tool_use_ids.append(block.id)
 
         if resp.stop_reason == "end_turn":
             break
 
-        if resp.stop_reason == "tool_use" and tool_uses:
+        if resp.stop_reason == "tool_use" and tool_use_ids:
+            # Append assistant turn; acknowledge tool calls so the loop continues.
+            # web_search_20250305 results are injected server-side on the next call.
             messages.append({"role": "assistant", "content": resp.content})
             messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "tool_result", "tool_use_id": tu.id, "content": []}
-                    for tu in tool_uses
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tid,
+                        "content": "",
+                    }
+                    for tid in tool_use_ids
                 ],
             })
         else:
@@ -106,11 +113,12 @@ def main() -> None:
 
     now = datetime.now(ICT)
     date_str = now.strftime("%d/%m/%Y")
+    year_str = now.strftime("%Y")
     thu_str = session["thu"]
 
     log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
 
-    body = generate_report(session, date_str)
+    body = generate_report(session, date_str, year_str)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")
