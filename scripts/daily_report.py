@@ -12,6 +12,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from zoneinfo import ZoneInfo
 
+# Ensure scripts/ is on sys.path so `prompts` can be imported regardless of
+# whether this file is invoked as `python scripts/daily_report.py` (from repo
+# root in CI) or `python daily_report.py` (from within scripts/).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import anthropic
 
 from prompts import SESSIONS, build_prompt
@@ -51,7 +56,7 @@ def generate_report(session: dict, date_str: str) -> str:
         resp = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 15}],
             messages=messages,
         )
 
@@ -66,11 +71,20 @@ def generate_report(session: dict, date_str: str) -> str:
             break
 
         if resp.stop_reason == "tool_use" and tool_uses:
+            # Append assistant turn (includes tool_use blocks from the model).
             messages.append({"role": "assistant", "content": resp.content})
+            # For the built-in server-side web_search tool, Anthropic executes
+            # the search and the results are already embedded in resp.content as
+            # tool_result blocks. We acknowledge each pending tool_use so the
+            # API continues; actual content is carried in the assistant message.
             messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "tool_result", "tool_use_id": tu.id, "content": []}
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tu.id,
+                        "content": "Search results provided in previous turn.",
+                    }
                     for tu in tool_uses
                 ],
             })
