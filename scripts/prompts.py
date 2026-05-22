@@ -74,16 +74,16 @@ NHIỆM VỤ: Nghiên cứu và viết báo cáo thị trường BĐS RESIDENTIA
 Thị trường trọng điểm: TP.HCM, Hà Nội, Đà Nẵng, Bình Dương, Đồng Nai, Long An, Bà Rịa–Vũng Tàu.
 
 HƯỚNG DẪN TÌM KIẾM — tìm lần lượt các cụm từ sau:
-1. "thị trường căn hộ chung cư tuần này {date_str}" HOẶC "bất động sản nhà ở tháng 5 2025"
-2. "Savills CBRE JLL Vietnam residential market Q1 2025"
+1. "thị trường căn hộ chung cư tuần này {date_str}" HOẶC "bất động sản nhà ở {year_str}"
+2. "Savills CBRE JLL Vietnam residential market Q1 {year_str}"
 3. "giá căn hộ TP.HCM Hà Nội {date_str}"
-4. "tồn kho căn hộ absorption rate Vietnam 2025"
-5. "lãi suất vay mua nhà ngân hàng Việt Nam mới nhất 2025"
-6. "dự án bất động sản mới ra mắt TP.HCM 2025"
+4. "tồn kho căn hộ absorption rate Vietnam {year_str}"
+5. "lãi suất vay mua nhà ngân hàng Việt Nam mới nhất {year_str}"
+6. "dự án bất động sản mới ra mắt TP.HCM {year_str}"
 7. "Luật Đất đai 2024 nghị định thông tư mới nhất"
-8. "PropTech AI định giá bất động sản Việt Nam 2025"
-9. "Build-to-Rent BTR affordable housing Asia 2025"
-10. "McKinsey BCG housing market report 2025"
+8. "PropTech AI định giá bất động sản Việt Nam {year_str}"
+9. "Build-to-Rent BTR affordable housing Asia {year_str}"
+10. "McKinsey BCG housing market report {year_str}"
 
 SAU KHI TÌM KIẾM, viết báo cáo theo đúng mẫu sau (giữ nguyên ký tự ━ ─ ⚡ ★ ✦):
 
@@ -216,17 +216,17 @@ Phân loại: Hotel branded / Hotel unbranded / Resort / Integrated Resort / \
 Serviced Apartment / Condotel / Entertainment venue.
 
 HƯỚNG DẪN TÌM KIẾM:
-1. "Vietnam hotel occupancy ADR RevPAR {date_str} 2025"
-2. "Savills CBRE JLL Vietnam hospitality market Q1 2025"
-3. "Vietnam tourism arrivals statistics 2025 latest"
-4. "serviced apartment Ho Chi Minh Hanoi occupancy rent 2025"
-5. "condotel legal status Vietnam 2025 update"
+1. "Vietnam hotel occupancy ADR RevPAR {date_str} {year_str}"
+2. "Savills CBRE JLL Vietnam hospitality market Q1 {year_str}"
+3. "Vietnam tourism arrivals statistics" {year_str} latest"
+4. "serviced apartment Ho Chi Minh Hanoi occupancy rent {year_str}"
+5. "condotel legal status Vietnam {year_str} update"
 6. "Quyết định 26/2025 TPHCM căn hộ dịch vụ"
-7. "integrated resort theme park Vietnam entertainment 2025"
-8. "Airbnb short-term rental regulation Vietnam 2025"
-9. "AI revenue management hospitality IHG Marriott 2025"
-10. "sustainability green hotel certification Vietnam 2025"
-11. "Vietnam international tourist arrivals 2025"
+7. "integrated resort theme park Vietnam entertainment {year_str}"
+8. "Airbnb short-term rental regulation Vietnam {year_str}"
+9. "AI revenue management hospitality IHG Marriott {year_str}"
+10. "sustainability green hotel certification Vietnam {year_str}"
+11. "Vietnam international tourist arrivals {year_str}"
 
 SAU KHI TÌM KIẾM, viết báo cáo theo đúng mẫu sau:
 
@@ -370,17 +370,17 @@ Thị trường trọng điểm: TP.HCM (CBD Q1/Q3/Thủ Thiêm; Non-CBD Phú M�
 | Hà Nội (CBD Hoàn Kiếm/Ba Đình/Tây Hồ Tây; Non-CBD Cầu Giấy/Gia Lâm).
 
 HƯỚNG DẪN TÌM KIẾM:
-1. "Vietnam Grade A office occupancy rent {date_str} 2025 CBRE JLL Savills"
-2. "office market Ho Chi Minh Hanoi Q1 2025 net absorption"
-3. "Vietnam retail mall occupancy rent 2025"
-4. "co-working flexible office Vietnam expansion 2025"
-5. "Vietnam CBD office sublease rate 2025"
+1. "Vietnam Grade A office occupancy rent {date_str} {year_str} CBRE JLL Savills"
+2. "office market Ho Chi Minh Hanoi Q1 {year_str} net absorption"
+3. "Vietnam retail mall occupancy rent {year_str}"
+4. "co-working flexible office Vietnam expansion {year_str}"
+5. "Vietnam CBD office sublease rate {year_str}"
 6. "retail tenant mix F&B fashion entertainment mall Vietnam"
-7. "hybrid work office demand Vietnam 2025 badge data"
-8. "green building LEED EDGE Vietnam office 2025"
-9. "PCCC quy định phòng cháy chữa cháy tòa nhà 2025"
-10. "experiential retail concept Asia case study 2025"
-11. "CBRE JLL Savills office retail outlook Vietnam Q1 2025 report"
+7. "hybrid work office demand Vietnam {year_str} badge data"
+8. "green building LEED EDGE Vietnam office {year_str}"
+9. "PCCC quy định phòng cháy chữa cháy tòa nhà {year_str}"
+10. "experiential retail concept Asia case study {year_str}"
+11. "CBRE JLL Savills office retail outlook Vietnam Q1 {year_str} report"
 
 SAU KHI TÌM KIẾM, viết báo cáo theo đúng mẫu sau:
 
@@ -533,19 +533,19 @@ Thị trường trọng điểm:
 • Vùng miền Trung: Đà Nẵng, Quảng Nam
 
 HƯỚNG DẪN TÌM KIẾM:
-1. "Vietnam industrial park occupancy rent FDI {date_str} 2025"
-2. "Savills CBRE JLL Vietnam industrial market Q1 2025"
-3. "FDI Vietnam manufacturing registration 2025 latest"
+1. "Vietnam industrial park occupancy rent FDI {date_str} {year_str}"
+2. "Savills CBRE JLL Vietnam industrial market Q1 {year_str}"
+3. "FDI Vietnam manufacturing registration {year_str} latest"
 4. "Vietnam KCN ready-built factory rent Binh Duong Dong Nai Bac Ninh"
-5. "Vietnam data center capacity expansion 2025 Viettel CMC Equinix"
-6. "technology park semiconductor Vietnam 2025"
-7. "China+1 supply chain Vietnam manufacturing FDI 2025"
-8. "Vietnam vs Thailand Indonesia Malaysia industrial park cost comparison 2025"
-9. "AI data center demand Vietnam hyperscaler AWS Azure Google 2025"
-10. "global minimum tax Vietnam FDI impact 2025"
-11. "green industrial park eco-industrial Vietnam ESG MNC tenant 2025"
-12. "McKinsey future of Asia manufacturing report 2025"
-13. "Vietnam semiconductor packaging testing assembly FDI 2025"
+5. "Vietnam data center capacity expansion {year_str} Viettel CMC Equinix"
+6. "technology park semiconductor Vietnam {year_str}"
+7. "China+1 supply chain Vietnam manufacturing FDI {year_str}"
+8. "Vietnam vs Thailand Indonesia Malaysia industrial park cost comparison {year_str}"
+9. "AI data center demand Vietnam hyperscaler AWS Azure Google {year_str}"
+10. "global minimum tax Vietnam FDI impact {year_str}"
+11. "green industrial park eco-industrial Vietnam ESG MNC tenant {year_str}"
+12. "McKinsey future of Asia manufacturing report {year_str}"
+13. "Vietnam semiconductor packaging testing assembly FDI {year_str}"
 
 SAU KHI TÌM KIẾM, viết báo cáo theo đúng mẫu sau:
 
@@ -707,10 +707,11 @@ _PROMPT_MAP: dict[str, str] = {
 }
 
 
-def build_prompt(session: dict, date_str: str) -> str:
+def build_prompt(session: dict, date_str: str, year_str: str) -> str:
     """Return the fully-rendered prompt for *session* on *date_str*."""
     template = _PROMPT_MAP[session["id"]]
     return template.format(
         thu_str=session["thu"],
         date_str=date_str,
+        year_str=year_str,
     )

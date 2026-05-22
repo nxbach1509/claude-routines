@@ -35,10 +35,10 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year_str: str) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    prompt = build_prompt(session, date_str, year_str)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
@@ -81,6 +81,19 @@ def generate_report(session: dict, date_str: str) -> str:
     return full_text
 
 
+def _plain_to_html(text: str) -> str:
+    """Wrap plain-text report in a monospace HTML shell for richer email rendering."""
+    escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'></head><body>"
+        "<div style=\"font-family:'Courier New',Courier,monospace;font-size:13px;"
+        "line-height:1.65;color:#1a1a1a;max-width:860px;margin:0 auto;"
+        "background:#fafafa;padding:24px;border:1px solid #e0e0e0;\">"
+        f"<pre style=\"white-space:pre-wrap;word-wrap:break-word;margin:0;\">{escaped}</pre>"
+        "</div></body></html>"
+    )
+
+
 def send_email(subject: str, body: str) -> None:
     sender = os.environ["GMAIL_SENDER"]
     password = os.environ["GMAIL_APP_PASSWORD"]
@@ -90,6 +103,7 @@ def send_email(subject: str, body: str) -> None:
     msg["From"] = sender
     msg["To"] = RECIPIENT
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(_plain_to_html(body), "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(sender, password)
@@ -106,11 +120,12 @@ def main() -> None:
 
     now = datetime.now(ICT)
     date_str = now.strftime("%d/%m/%Y")
+    year_str = now.strftime("%Y")
     thu_str = session["thu"]
 
     log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
 
-    body = generate_report(session, date_str)
+    body = generate_report(session, date_str, year_str)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")
