@@ -43,10 +43,8 @@ def generate_report(session: dict, date_str: str) -> str:
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
     messages: list[dict] = [{"role": "user", "content": prompt}]
-    full_text = ""
+    final_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
     for _turn in range(20):
         resp = client.messages.create(
             model=MODEL,
@@ -55,17 +53,16 @@ def generate_report(session: dict, date_str: str) -> str:
             messages=messages,
         )
 
-        tool_uses: list = []
-        for block in resp.content:
-            if hasattr(block, "text"):
-                full_text += block.text
-            elif getattr(block, "type", None) == "tool_use":
-                tool_uses.append(block)
+        tool_uses = [b for b in resp.content if getattr(b, "type", None) == "tool_use"]
+        text_parts = [b.text for b in resp.content if hasattr(b, "text") and b.text]
 
         if resp.stop_reason == "end_turn":
+            # This is the final response — take only this turn's text
+            final_text = "".join(text_parts)
             break
 
         if resp.stop_reason == "tool_use" and tool_uses:
+            # Web search tool call: acknowledge and continue
             messages.append({"role": "assistant", "content": resp.content})
             messages.append({
                 "role": "user",
@@ -75,10 +72,12 @@ def generate_report(session: dict, date_str: str) -> str:
                 ],
             })
         else:
+            # Unexpected stop — take whatever text we have
+            final_text = "".join(text_parts)
             break
 
-    log.info("Report generated: %d chars", len(full_text))
-    return full_text
+    log.info("Report generated: %d chars", len(final_text))
+    return final_text
 
 
 def send_email(subject: str, body: str) -> None:
