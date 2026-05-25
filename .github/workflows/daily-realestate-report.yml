@@ -2,14 +2,14 @@ name: Daily Real Estate Report — Vietnam
 
 on:
   schedule:
-    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4) in cron notation
+    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4)
     - cron: '30 0 * * 1-4'
   workflow_dispatch:   # manual trigger for testing / backfill
 
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45   # Opus + web search can take time
 
     steps:
       - uses: actions/checkout@v4
@@ -27,4 +27,6 @@ jobs:
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: python scripts/daily_report.py
+          TZ: Asia/Ho_Chi_Minh
+        working-directory: scripts
+        run: python daily_report.py
