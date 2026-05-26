@@ -35,10 +35,10 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year: int) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    prompt = build_prompt(session, date_str, year)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
@@ -81,6 +81,33 @@ def generate_report(session: dict, date_str: str) -> str:
     return full_text
 
 
+def _wrap_html(plain_body: str, subject: str) -> str:
+    """Wrap plain-text report in minimal HTML for better email readability."""
+    import html as html_mod
+    escaped = html_mod.escape(plain_body)
+    lines = escaped.split("\n")
+    html_lines = []
+    for line in lines:
+        if line.startswith("━") or line.startswith("─"):
+            html_lines.append(f'<hr style="border:1px solid #1a3c5e;margin:12px 0;">')
+        elif line.startswith("⚡") or line.startswith("★") or line.startswith("✦"):
+            html_lines.append(f'<p style="margin:4px 0;"><strong>{line}</strong></p>')
+        elif line.startswith("•") or line.startswith("-"):
+            html_lines.append(f'<p style="margin:2px 0 2px 16px;">{line}</p>')
+        elif line.strip() == "":
+            html_lines.append("<br>")
+        else:
+            html_lines.append(f'<p style="margin:4px 0;">{line}</p>')
+    body_html = "\n".join(html_lines)
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;font-size:14px;color:#1a1a1a;
+max-width:800px;margin:0 auto;padding:20px;background:#f5f5f5;">
+<div style="background:#fff;border-radius:8px;padding:32px;
+box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+{body_html}
+</div></body></html>"""
+
+
 def send_email(subject: str, body: str) -> None:
     sender = os.environ["GMAIL_SENDER"]
     password = os.environ["GMAIL_APP_PASSWORD"]
@@ -90,6 +117,7 @@ def send_email(subject: str, body: str) -> None:
     msg["From"] = sender
     msg["To"] = RECIPIENT
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(_wrap_html(body, subject), "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(sender, password)
@@ -110,7 +138,7 @@ def main() -> None:
 
     log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
 
-    body = generate_report(session, date_str)
+    body = generate_report(session, date_str, now.year)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")
