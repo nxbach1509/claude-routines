@@ -7,6 +7,7 @@ import logging
 import os
 import smtplib
 import sys
+import time
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -25,8 +26,9 @@ log = logging.getLogger(__name__)
 
 ICT = ZoneInfo("Asia/Ho_Chi_Minh")
 RECIPIENT = "nxbach1509@gmail.com"
-MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 16000
+MODEL = "claude-opus-4-7"
+MAX_TOKENS = 32000
+MAX_TOOL_TURNS = 30
 
 
 def get_today_session() -> dict | None:
@@ -45,9 +47,7 @@ def generate_report(session: dict, date_str: str) -> str:
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
-    for _turn in range(20):
+    for turn in range(MAX_TOOL_TURNS):
         resp = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
@@ -62,6 +62,9 @@ def generate_report(session: dict, date_str: str) -> str:
             elif getattr(block, "type", None) == "tool_use":
                 tool_uses.append(block)
 
+        log.info("Turn %d — stop_reason=%s tool_uses=%d text_so_far=%d chars",
+                 turn + 1, resp.stop_reason, len(tool_uses), len(full_text))
+
         if resp.stop_reason == "end_turn":
             break
 
@@ -70,12 +73,16 @@ def generate_report(session: dict, date_str: str) -> str:
             messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "tool_result", "tool_use_id": tu.id, "content": []}
+                    {"type": "tool_result", "tool_use_id": tu.id, "content": ""}
                     for tu in tool_uses
                 ],
             })
         else:
+            log.warning("Unexpected stop_reason=%s — breaking loop", resp.stop_reason)
             break
+
+    if not full_text.strip():
+        raise RuntimeError("Report generation returned empty text — aborting send.")
 
     log.info("Report generated: %d chars", len(full_text))
     return full_text
@@ -91,11 +98,19 @@ def send_email(subject: str, body: str) -> None:
     msg["To"] = RECIPIENT
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(sender, password)
-        smtp.sendmail(sender, [RECIPIENT], msg.as_string())
+    for attempt in range(3):
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                smtp.login(sender, password)
+                smtp.sendmail(sender, [RECIPIENT], msg.as_string())
+            log.info("Email sent → %s", RECIPIENT)
+            return
+        except Exception as exc:
+            wait = 2 ** attempt
+            log.warning("SMTP attempt %d failed: %s — retrying in %ds", attempt + 1, exc, wait)
+            time.sleep(wait)
 
-    log.info("Email sent → %s", RECIPIENT)
+    raise RuntimeError("All SMTP attempts failed.")
 
 
 def main() -> None:
