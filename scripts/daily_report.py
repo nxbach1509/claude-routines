@@ -45,21 +45,24 @@ def generate_report(session: dict, date_str: str) -> str:
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
+    # Tool-use loop: web_search_20250305 is Anthropic-hosted (server-side search).
+    # We must acknowledge each tool_use stop by echoing an empty tool_result so
+    # the API injects the actual search results and the model can continue.
     for _turn in range(20):
-        resp = client.messages.create(
+        resp = client.beta.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
+            betas=["web-search-2025-03-05"],
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=messages,
         )
 
         tool_uses: list = []
         for block in resp.content:
-            if hasattr(block, "text"):
+            block_type = getattr(block, "type", None)
+            if block_type == "text":
                 full_text += block.text
-            elif getattr(block, "type", None) == "tool_use":
+            elif block_type == "tool_use":
                 tool_uses.append(block)
 
         if resp.stop_reason == "end_turn":

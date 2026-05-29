@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 # ---------------------------------------------------------------------------
 # Session registry — keyed by Python weekday (0=Mon … 3=Thu)
 # ---------------------------------------------------------------------------
@@ -710,6 +712,10 @@ _PROMPT_MAP: dict[str, str] = {
 def build_prompt(session: dict, date_str: str) -> str:
     """Return the fully-rendered prompt for *session* on *date_str*."""
     template = _PROMPT_MAP[session["id"]]
+    year_str = date_str[-4:]  # "29/05/2026" → "2026"
+    # Replace standalone year references in search queries with the current year.
+    # Negative lookbehind on "/" protects regulation numbers like "26/2025".
+    template = re.sub(r"(?<!/)\b2025\b", year_str, template)
     return template.format(
         thu_str=session["thu"],
         date_str=date_str,
