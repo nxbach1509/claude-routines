@@ -4,7 +4,14 @@ on:
   schedule:
     # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4) in cron notation
     - cron: '30 0 * * 1-4'
-  workflow_dispatch:   # manual trigger for testing / backfill
+
+  workflow_dispatch:
+    inputs:
+      day_override:
+        description: 'Force a specific session (0=Mon/Residential 1=Tue/Hospitality 2=Wed/Retail-Office 3=Thu/Industrial)'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   report:
@@ -27,4 +34,9 @@ jobs:
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-        run: python scripts/daily_report.py
+        run: |
+          if [ -n "${{ github.event.inputs.day_override }}" ]; then
+            python scripts/daily_report.py --day ${{ github.event.inputs.day_override }}
+          else
+            python scripts/daily_report.py
+          fi
