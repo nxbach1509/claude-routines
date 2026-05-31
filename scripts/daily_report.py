@@ -25,8 +25,16 @@ log = logging.getLogger(__name__)
 
 ICT = ZoneInfo("Asia/Ho_Chi_Minh")
 RECIPIENT = "nxbach1509@gmail.com"
-MODEL = "claude-sonnet-4-6"
-MAX_TOKENS = 16000
+MODEL = "claude-opus-4-8"
+MAX_TOKENS = 32_000
+# Server-side web-search loops at most 10 iterations before pause_turn;
+# allow up to 5 continuations so the model can do ~50 searches if needed.
+MAX_CONTINUATIONS = 5
+
+_TOOLS = [
+    {"type": "web_search_20260209", "name": "web_search"},
+    {"type": "web_fetch_20260209", "name": "web_fetch"},
+]
 
 
 def get_today_session() -> dict | None:
@@ -45,36 +53,35 @@ def generate_report(session: dict, date_str: str) -> str:
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
-    for _turn in range(20):
+    for _turn in range(MAX_CONTINUATIONS):
         resp = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            tools=_TOOLS,
             messages=messages,
         )
 
-        tool_uses: list = []
         for block in resp.content:
-            if hasattr(block, "text"):
+            if getattr(block, "type", None) == "text":
                 full_text += block.text
-            elif getattr(block, "type", None) == "tool_use":
-                tool_uses.append(block)
+
+        log.info(
+            "Turn %d/%d: stop_reason=%s, cumulative_chars=%d",
+            _turn + 1,
+            MAX_CONTINUATIONS,
+            resp.stop_reason,
+            len(full_text),
+        )
 
         if resp.stop_reason == "end_turn":
             break
-
-        if resp.stop_reason == "tool_use" and tool_uses:
+        elif resp.stop_reason == "pause_turn":
+            # Server-side tool loop hit its 10-iteration cap.
+            # Append the assistant turn — the API detects the trailing
+            # server_tool_use block and resumes automatically (no user message needed).
             messages.append({"role": "assistant", "content": resp.content})
-            messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "tool_result", "tool_use_id": tu.id, "content": []}
-                    for tu in tool_uses
-                ],
-            })
         else:
+            log.warning("Unexpected stop_reason=%s; halting.", resp.stop_reason)
             break
 
     log.info("Report generated: %d chars", len(full_text))
