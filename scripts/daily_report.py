@@ -35,10 +35,10 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year_str: str, month_vi_str: str, quarter_str: str) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    prompt = build_prompt(session, date_str, year_str, month_vi_str, quarter_str)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
@@ -98,6 +98,13 @@ def send_email(subject: str, body: str) -> None:
     log.info("Email sent → %s", RECIPIENT)
 
 
+_MONTH_VI = {
+    1: "tháng 1", 2: "tháng 2", 3: "tháng 3", 4: "tháng 4",
+    5: "tháng 5", 6: "tháng 6", 7: "tháng 7", 8: "tháng 8",
+    9: "tháng 9", 10: "tháng 10", 11: "tháng 11", 12: "tháng 12",
+}
+
+
 def main() -> None:
     session = get_today_session()
     if not session:
@@ -106,11 +113,14 @@ def main() -> None:
 
     now = datetime.now(ICT)
     date_str = now.strftime("%d/%m/%Y")
+    year_str = str(now.year)
+    month_vi_str = _MONTH_VI[now.month]
+    quarter_str = f"Q{(now.month - 1) // 3 + 1}"
     thu_str = session["thu"]
 
     log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
 
-    body = generate_report(session, date_str)
+    body = generate_report(session, date_str, year_str, month_vi_str, quarter_str)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")
