@@ -2,14 +2,29 @@ name: Daily Real Estate Report — Vietnam
 
 on:
   schedule:
-    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4) in cron notation
+    # 07:30 ICT (UTC+7) = 00:30 UTC | Mon (1) – Thu (4)
     - cron: '30 0 * * 1-4'
-  workflow_dispatch:   # manual trigger for testing / backfill
+
+  workflow_dispatch:
+    inputs:
+      session_override:
+        description: >
+          Force a specific session (A=Residential, B=Hospitality,
+          C=Retail & Office, D=Industrial). Leave blank to use today's schedule.
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - A
+          - B
+          - C
+          - D
 
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -27,4 +42,13 @@ jobs:
           ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_SENDER:       ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          SESSION_OVERRIDE:   ${{ inputs.session_override }}
         run: python scripts/daily_report.py
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Report Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Date (UTC):** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Session override:** ${{ inputs.session_override || '(auto from schedule)' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Recipient:** nxbach1509@gmail.com" >> $GITHUB_STEP_SUMMARY
