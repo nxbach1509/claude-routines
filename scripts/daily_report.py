@@ -7,6 +7,7 @@ import logging
 import os
 import smtplib
 import sys
+import time
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -25,8 +26,9 @@ log = logging.getLogger(__name__)
 
 ICT = ZoneInfo("Asia/Ho_Chi_Minh")
 RECIPIENT = "nxbach1509@gmail.com"
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-opus-4-8"
 MAX_TOKENS = 16000
+MAX_SEARCH_TURNS = 25
 
 
 def get_today_session() -> dict | None:
@@ -35,19 +37,28 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
+def _serialize_content(content: list) -> list[dict]:
+    """Convert SDK content-block objects to plain dicts for message history."""
+    result = []
+    for block in content:
+        if hasattr(block, "model_dump"):
+            result.append(block.model_dump())
+        elif isinstance(block, dict):
+            result.append(block)
+        else:
+            result.append({"type": "text", "text": str(block)})
+    return result
+
+
 def generate_report(session: dict, date_str: str) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     prompt = build_prompt(session, date_str)
-
-    log.info("Calling %s for Session %s …", MODEL, session["id"])
-
     messages: list[dict] = [{"role": "user", "content": prompt}]
-    full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
-    for _turn in range(20):
+    log.info("Generating report for Session %s (%s)…", session["id"], session["name"])
+
+    for turn in range(MAX_SEARCH_TURNS):
         resp = client.messages.create(
             model=MODEL,
             max_tokens=MAX_TOKENS,
@@ -55,18 +66,24 @@ def generate_report(session: dict, date_str: str) -> str:
             messages=messages,
         )
 
-        tool_uses: list = []
-        for block in resp.content:
-            if hasattr(block, "text"):
-                full_text += block.text
-            elif getattr(block, "type", None) == "tool_use":
-                tool_uses.append(block)
+        log.info("Turn %d: stop_reason=%s, blocks=%d", turn + 1, resp.stop_reason, len(resp.content))
 
         if resp.stop_reason == "end_turn":
-            break
+            text = "".join(
+                block.text for block in resp.content if hasattr(block, "text")
+            )
+            log.info("Report complete: %d chars", len(text))
+            return text
 
-        if resp.stop_reason == "tool_use" and tool_uses:
-            messages.append({"role": "assistant", "content": resp.content})
+        if resp.stop_reason == "tool_use":
+            tool_uses = [b for b in resp.content if getattr(b, "type", None) == "tool_use"]
+            if not tool_uses:
+                # No tool_use blocks despite stop_reason — collect any text and exit
+                break
+            queries = [getattr(tu, "input", {}).get("query", "?") for tu in tool_uses]
+            log.info("Searching: %s", queries)
+
+            messages.append({"role": "assistant", "content": _serialize_content(resp.content)})
             messages.append({
                 "role": "user",
                 "content": [
@@ -74,11 +91,16 @@ def generate_report(session: dict, date_str: str) -> str:
                     for tu in tool_uses
                 ],
             })
-        else:
-            break
+            continue
 
-    log.info("Report generated: %d chars", len(full_text))
-    return full_text
+        if resp.stop_reason == "max_tokens":
+            log.warning("Max tokens hit on turn %d — collecting partial text", turn + 1)
+            return "".join(b.text for b in resp.content if hasattr(b, "text"))
+
+        log.warning("Unexpected stop_reason=%s on turn %d", resp.stop_reason, turn + 1)
+        break
+
+    raise RuntimeError(f"Report generation did not complete within {MAX_SEARCH_TURNS} turns")
 
 
 def send_email(subject: str, body: str) -> None:
@@ -91,11 +113,21 @@ def send_email(subject: str, body: str) -> None:
     msg["To"] = RECIPIENT
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(sender, password)
-        smtp.sendmail(sender, [RECIPIENT], msg.as_string())
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+                smtp.login(sender, password)
+                smtp.sendmail(sender, [RECIPIENT], msg.as_string())
+            log.info("Email sent → %s (attempt %d)", RECIPIENT, attempt + 1)
+            return
+        except Exception as exc:
+            last_exc = exc
+            wait = 2 ** attempt
+            log.warning("Send attempt %d failed: %s — retrying in %ds", attempt + 1, exc, wait)
+            time.sleep(wait)
 
-    log.info("Email sent → %s", RECIPIENT)
+    raise RuntimeError(f"Failed to send email after 3 attempts: {last_exc}") from last_exc
 
 
 def main() -> None:
