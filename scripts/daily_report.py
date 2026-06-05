@@ -35,10 +35,10 @@ def get_today_session() -> dict | None:
     return SESSIONS.get(now.weekday())  # 0=Mon … 3=Thu; 4-6 → None
 
 
-def generate_report(session: dict, date_str: str) -> str:
+def generate_report(session: dict, date_str: str, year_str: str | None = None) -> str:
     """Call Claude with web-search enabled and return the finished report text."""
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    prompt = build_prompt(session, date_str)
+    prompt = build_prompt(session, date_str, year_str)
 
     log.info("Calling %s for Session %s …", MODEL, session["id"])
 
@@ -110,7 +110,8 @@ def main() -> None:
 
     log.info("Session %s: %s — %s", session["id"], session["name"], date_str)
 
-    body = generate_report(session, date_str)
+    year_str = now.strftime("%Y")
+    body = generate_report(session, date_str, year_str)
     subject = f"{session['email_prefix']} Deep Dive — {thu_str}, {date_str}"
     send_email(subject, body)
     log.info("Done ✓")
