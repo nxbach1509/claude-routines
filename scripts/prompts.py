@@ -53,7 +53,11 @@ TIÊU CHUẨN ĐẦU RA:
 NGUỒN ƯU TIÊN (tìm kiếm từ 7 ngày qua trước):
 Savills, CBRE, JLL, Cushman & Wakefield, Knight Frank, McKinsey GI, BCG, Bain, \
 Mordor Intelligence, Bloomberg, Reuters, VnExpress, Cafef, Reatimes, Tạp chí BĐS VN, \
-Bộ Xây dựng.\
+Bộ Xây dựng.
+
+NĂM HIỆN TẠI: {year} (quý: {quarter}). Khi tìm kiếm web, luôn dùng năm {year} và quý {quarter} — \
+không tìm dữ liệu năm cũ hơn trừ khi so sánh lịch sử. Các ví dụ tìm kiếm bên dưới \
+ghi "2025" chỉ là mẫu — hãy thay bằng {year}/{quarter} khi thực tế tìm kiếm.\
 """
 
 _COMMON_FOOTER = """\
@@ -709,8 +713,12 @@ _PROMPT_MAP: dict[str, str] = {
 
 def build_prompt(session: dict, date_str: str) -> str:
     """Return the fully-rendered prompt for *session* on *date_str*."""
+    day, month, year = date_str.split("/")
+    quarter = f"Q{(int(month) - 1) // 3 + 1} {year}"
     template = _PROMPT_MAP[session["id"]]
     return template.format(
         thu_str=session["thu"],
         date_str=date_str,
+        year=year,
+        quarter=quarter,
     )
