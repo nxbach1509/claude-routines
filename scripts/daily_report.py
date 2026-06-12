@@ -7,6 +7,7 @@ import logging
 import os
 import smtplib
 import sys
+import textwrap
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -25,7 +26,7 @@ log = logging.getLogger(__name__)
 
 ICT = ZoneInfo("Asia/Ho_Chi_Minh")
 RECIPIENT = "nxbach1509@gmail.com"
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-opus-4-8"
 MAX_TOKENS = 16000
 
 
@@ -45,8 +46,8 @@ def generate_report(session: dict, date_str: str) -> str:
     messages: list[dict] = [{"role": "user", "content": prompt}]
     full_text = ""
 
-    # Tool-use loop: web_search_20250305 is server-side but may produce
-    # intermediate tool_use stops that must be acknowledged.
+    # Tool-use loop: handle web_search intermediate turns.
+    # web_search_20250305 is Anthropic-hosted; results come back in the next turn.
     for _turn in range(20):
         resp = client.messages.create(
             model=MODEL,
@@ -81,6 +82,38 @@ def generate_report(session: dict, date_str: str) -> str:
     return full_text
 
 
+def _build_html(body: str) -> str:
+    """Wrap the plain-text report in minimal HTML for nicer email rendering."""
+    escaped = (
+        body
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+    return textwrap.dedent(f"""\
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+        </head>
+        <body style="margin:0;padding:16px;background:#f5f5f5;font-family:sans-serif;">
+          <div style="max-width:800px;margin:0 auto;background:#ffffff;
+                      border-radius:8px;padding:24px 28px;
+                      border:1px solid #e0e0e0;">
+            <pre style="font-family:'Courier New',Courier,monospace;
+                        font-size:13px;line-height:1.6;
+                        white-space:pre-wrap;word-break:break-word;
+                        color:#222222;margin:0;">{escaped}</pre>
+          </div>
+          <p style="text-align:center;font-size:11px;color:#999;margin-top:12px;">
+            Báo cáo tự động · Claude AI · Mọi số liệu cần được xác minh độc lập trước khi ra quyết định.
+          </p>
+        </body>
+        </html>
+    """)
+
+
 def send_email(subject: str, body: str) -> None:
     sender = os.environ["GMAIL_SENDER"]
     password = os.environ["GMAIL_APP_PASSWORD"]
@@ -89,7 +122,10 @@ def send_email(subject: str, body: str) -> None:
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = RECIPIENT
+
+    # Plain-text fallback first, HTML preferred part last (RFC 2046)
     msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(_build_html(body), "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(sender, password)
