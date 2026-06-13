@@ -6,6 +6,9 @@ on:
     - cron: '30 0 * * 1-4'
   workflow_dispatch:   # manual trigger for testing / backfill
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   report:
     runs-on: ubuntu-latest
